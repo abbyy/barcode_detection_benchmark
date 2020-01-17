@@ -1,0 +1,265 @@
+{% if dilated_model %}
+model_params:
+  model: ZharkovDilatedNet
+  in_channels: 3
+  num_classes: {{ tm.n_channels }}
+{% else %}
+model_params:
+  model: ResnetUnet
+  arch: resnet18
+  pretrained: True
+  num_classes: {{ tm.n_channels }}
+{% endif %}
+
+args:
+  expdir: src
+  baselogdir: ./logs/debug
+
+stages:
+
+  state_params:
+    num_epochs: {{ num_epochs }}
+    main_metric: &reduce_metric loss
+    minimize_metric: True
+
+  data_params:
+    num_workers: {{ num_workers }}
+    batch_size: {{ batch_size }}
+    per_gpu_scaling: True
+    image_size: {{ image_size }}
+    max_caching_size: {{ max_caching_size }}
+
+    datasets_params:
+      {% if train_dataset %}
+      train:
+        datapath: {{ train_dataset.datapath }}
+        csv_path: {{ train_dataset.csv_path }}
+        info_json_path: {{ train_dataset.info_json_path }}
+      {% endif %}
+      {% if valid_dataset %}
+      valid:
+        datapath: {{ valid_dataset.datapath }}
+        csv_path: {{ valid_dataset.csv_path }}
+        info_json_path: {{ valid_dataset.info_json_path }}
+      {% endif %}
+      {% for name, params in infer_datasets.items()%}
+      infer_{{ name }}:
+        datapath: {{ params.datapath }}
+        csv_path: {{ params.csv_path }}
+        info_json_path: {{ params.info_json_path }}
+      {% endfor %}
+
+    loaders_params:
+      {% for dataset_name in ["train", "valid"] %}
+      {{ dataset_name }}:
+        collate_fn: collate_any
+      {% endfor %}
+      {% for dataset_name in infer_datasets %}
+      infer_{{ dataset_name }}:
+        collate_fn: collate_any
+        batch_size: 1
+      {% endfor %}
+
+  criterion_params:
+    _key_value: True
+
+    bce:
+      criterion: BCEWithLogitsLoss
+    dice:
+      criterion: DiceLoss
+    iou:
+      criterion: IoULoss
+
+  callbacks_params:
+    prediction_upscale:
+      callback: MaybeUpscaleOutputCallback
+
+    {% set d_losses = ["bce", "dice", "iou"] %}
+    {% set c_losses = d_losses %}
+
+    {% for d_name, d_cls_id, d_tm_id in zip(tm.d_class_names, tm.d_class_ids, tm.d_tm_ids) %}
+    # losses for class '{{ d_name }}' which is located on target map index {{ d_tm_id }}
+    # detection losses:
+    {% for loss_name in d_losses %}
+    loss_{{ loss_name }}_{{ d_name }}:
+      callback: SelectedChannelCriterionCallback
+      input_key: mask
+      output_key: logits
+      target_map_id: {{ d_tm_id }}
+      prefix: loss_detection/{{ d_name }}/{{ loss_name }}
+      criterion_key: {{ loss_name }}
+    {% endfor %}
+    # aggregated detection loss for detection class '{{ d_name }}'
+    detection_loss_agg_{{ d_name }}:
+      callback: CriterionAggregatorCallback
+      loss_aggregate_fn: "mean"
+      loss_keys:
+        {% for loss_name in d_losses %}
+        - loss_detection/{{ d_name }}/{{ loss_name }}
+        {% endfor %}
+      prefix: loss_detection/{{ d_name }}
+    {% if tm.d_classified[d_cls_id] %}
+    # classification losses:
+    {%
+      for c_name, c_cls_id, c_tm_id in zip(
+          tm.get_c_names(d_cls_id), tm.get_c_class_ids(d_cls_id), tm.get_c_tm_ids(d_cls_id)
+      )
+    %}
+    # detection class: '{{ d_name }}', classification class: '{{ c_name }}' target map location {{ c_tm_id }}
+    {% for loss_name in c_losses %}
+    loss_{{ loss_name }}_{{ d_name }}_{{ c_name }}:
+      callback: SelectedChannelCriterionCallback
+      input_key: mask
+      output_key: logits
+      target_map_id: {{ c_tm_id }}
+      prefix: loss_classification/{{ d_name }}/{{ c_name }}/{{ loss_name }}
+      criterion_key: {{ loss_name }}
+    {% endfor %}
+    {% endfor %}
+    # aggregated classification loss for detection class '{{ d_name }}'
+    classification_loss_agg_{{ d_name }}:
+      callback: CriterionAggregatorCallback
+      loss_aggregate_fn: "mean"
+      loss_keys:
+        {% for loss_name in c_losses %}
+        {% for c_name in tm.get_c_names(d_cls_id) %}
+        - loss_classification/{{ d_name }}/{{ c_name }}/{{ loss_name }}
+        {% endfor %}
+        {% endfor %}
+      prefix: loss_classification/{{ d_name }}
+    {% endif %}
+    # aggregated detection & classification losses for detection class '{{ d_name }}'
+    loss_agg_{{ d_name }}:
+      callback: WeightedCriterionAggregatorCallback
+      loss_keys:
+        - loss_detection/{{ d_name }}
+        {% if tm.d_classified[d_cls_id] %}
+        - loss_classification/{{ d_name }}
+        {% endif %}
+      weights: [1.0{% if tm.d_classified[d_cls_id] %}, {{ tm.d_classification_weights[d_cls_id] }}{% endif %}]
+      prefix: loss/{{ d_name }}
+    {% endfor %}
+
+    loss_aggregator:
+      callback: WeightedCriterionAggregatorCallback
+      prefix: &aggregated_loss loss
+      loss_keys:
+        {% for d_name in tm.d_class_names %}
+        - loss/{{ d_name }}
+        {% endfor %}
+      weights:
+        {% for d_weight in tm.d_weights %}
+        - {{ d_weight }}
+        {% endfor %}
+
+    iou_soft:
+      callback: IouCallback
+      input_key: mask
+      output_key: logits
+      prefix: iou_soft
+    iou_hard:
+      callback: IouCallback
+      input_key: mask
+      output_key: logits
+      prefix: iou_hard
+      threshold: 0.5
+
+    saver:
+      callback: CheckpointCallback
+
+  {% if train_dataset %}
+  # training
+  stage1:
+
+    optimizer_params:
+      optimizer: Adam
+      lr: 0.001
+      weight_decay: 0.0001
+
+    scheduler_params:
+      scheduler: MultiStepLR
+      milestones: [50]
+      gamma: 0.3
+
+    callbacks_params:
+      optimizer:
+        callback: OptimizerCallback
+        loss_key: *aggregated_loss
+      scheduler:
+        callback: SchedulerCallback
+        reduce_metric: *reduce_metric
+      postprocessor:
+        callback: RawMaskPostprocessingCallback
+        output_objects_on_original_key: none
+      {% for d_name, d_cls_id, d_tm_id in zip(tm.d_class_names, tm.d_class_ids, tm.d_tm_ids) %}
+      object_detection_metric_calculator_{{ d_name }}:
+        callback: ObjectDetectionMetricsCallback
+        input_key: "objects"
+        output_key: "objects"
+        output_metric_key: image_metrics
+        filter_only: {{ d_cls_id }}
+        {% if tm.d_classified[d_cls_id] %}
+        class_names: [{{ tm.get_c_names(d_cls_id)|join(', ') }}]  # prevent bad visualization of template '
+        class_tm_indices: [{{ tm.get_c_tm_ids(d_cls_id)|join(', ') }}]  # prevent bad visualization of template '
+        compute_classification_metrics: True
+        {% endif %}
+      {% endfor %}
+
+      visualizer:
+        callback: VisualizationsSaverCallback
+        kinds: [recall]
+        detection_only: True
+        valid_only: True
+        iou_threshold: 0.5
+        input_image_key: "image"
+        input_mask_key: "mask"
+        input_image_name_key: "image_name"
+        output_mask_key: "heatmaps"
+        output_image_metrics_key: "image_metrics"
+        output_dir: "visualizations"
+        max_images: 10  # for sanity check/debug this is more than enough
+  {% endif %}
+
+  {% if infer_datasets %}
+  # inference with best model
+  infer_stage:
+
+    state_params:
+      num_epochs: 1
+
+    callbacks_params:
+      postprocessor:
+        callback: RawMaskPostprocessingCallback
+        output_objects_on_original_key: "objects_on_original"
+
+      {% for d_name, d_cls_id, d_tm_id in zip(tm.d_class_names, tm.d_class_ids, tm.d_tm_ids) %}
+      object_detection_metric_calculator{{ d_name }}:
+        callback: ObjectDetectionMetricsCallback
+        input_key: "objects_on_original"
+        output_key: "objects_on_original"
+        output_metric_key: image_metrics
+        filter_only: {{ d_cls_id }}
+        {% if tm.d_classified[d_cls_id] %}
+        class_names: [{{ tm.get_c_names(d_cls_id)|join(', ') }}]  # prevent bad visualization of template '
+        class_tm_indices: [{{ tm.get_c_tm_ids(d_cls_id)|join(', ') }}]  # prevent bad visualization of template '
+        compute_classification_metrics: True
+        {% endif %}
+      {% endfor %}
+
+      visualizer:
+        callback: VisualizationsSaverCallback
+        kinds: [all, recall]
+        detection_only: True
+        valid_only: True
+        iou_threshold: 0.5
+        input_image_key: "image"
+        input_mask_key: "mask"
+        input_image_name_key: "image_name"
+        output_mask_key: "heatmaps"
+        output_image_metrics_key: "image_metrics"
+        output_dir: "visualizations"
+        max_images: 100
+
+      infer_callback:
+        callback: InferenceCallback
+  {% endif %}

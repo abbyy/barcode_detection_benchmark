@@ -1,0 +1,13 @@
+class_config:
+  # detection_class_name: ...
+  Postnet:  # detection class
+    weight: 1.0  # detection class weight
+    subclasses:  # classified subclasses
+      Postnet:
+      AustraliaPost:
+      Kix:
+      IntelligentMail:
+      RoyalMailCode:
+      JapanPost:
+    classified: False  # default True
+    classification_w: 0.05  # default 0.05

@@ -1,0 +1,18 @@
+class_config:
+  # detection_class_name: ...
+  Barcode:  # detection class
+    weight: 1.0  # detection class weight
+    subclasses:  # classified subclasses
+      Barcode1D:  # subclass_name1
+        weight: 1.0  # default value, do not need to specify
+        aliases: [Code128, Patch, EAN8, EAN13, Industrial25, Interleaved25, Standard2of5, Code32, UCC128,
+                  FullASCIICode, MATRIX25, Code39, IATA25, UPCA, UPCE, CODABAR, Code93, 2-Digit]
+      QRCode:  # subclass_name2 (default params: weight=1.0, aliases=[subclass_name])
+      Aztec:
+      DataMatrix:
+      MaxiCode:
+      PDF417:
+      Postal:
+        aliases: [Postnet, AustraliaPost, Kix, IntelligentMail, RoyalMailCode, JapanPost]
+    classified: True  # default True
+    classification_w: 0.05  # default 0.05
