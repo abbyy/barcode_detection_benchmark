@@ -38,7 +38,7 @@ pip install catalyst==19.11.6 albumentations shapely jinja2 'pillow<7.0'
 
 ## Quick start
 
-0. Download the datasets from https://toappear 
+0. Download the datasets ZVZ-synth & ZVZ-real [from here](https://drive.google.com/drive/folders/1u-EfCBu-HScu0kEfXGFzFuuWfFnpOsia?usp=sharing) 
 (you may consider to download smaller dataset versions 
 where every image is resized to max side 512)
 
@@ -77,7 +77,7 @@ Then you will be able to run training/inference with the following command
 catalyst-dl run -C configs/generated/ZVZ-real/resnet18_unet/config.yml configs/generated/ZVZ-real/resnet18_unet/class_config.yml --baselogdir logs/runs
 ```
 
-If you want to download pretrained models, they are available at https://toappear 
+If you want to download pretrained models, all of the models from our experiments [can be downloaded from here](https://drive.google.com/drive/folders/1hlOJ4rFK8IphWoUjTjRHANc3c2Q8rMc4?usp=sharing)
 To run inference with pretrained model run with `--resume path/to/checkpoint.pth`, e.g.
 ```bash
 catalyst-dl run -C configs/generated/ZVZ-real/resnet18_unet/config.yml configs/generated/ZVZ-real/resnet18_unet/class_config.yml --logdir logs/inference --resume path/to/checkpoint.pth
@@ -90,7 +90,7 @@ Custom `Experiment` class will read your dataset, but first you have to prepare 
 and save description in csv format.
 
 This repo has scripts/prepare_dataset.sh which does exactly this job. Assuming that you have
-barcode dataset in the same format as [link on our publically available dataset, to appear]()
+dataset in the same format as ZVZ-synth & ZVZ-real
 you should run this script like
 
 ```bash
