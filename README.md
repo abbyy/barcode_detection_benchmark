@@ -3,7 +3,6 @@
 Code for paper [New Benchmarks for Barcode Detection using both Synthetic and Real Data](https://toappear)
 
 You can download datasets ZVZ-synth & ZVZ-real [from here](https://drive.google.com/drive/folders/1u-EfCBu-HScu0kEfXGFzFuuWfFnpOsia?usp=sharing). 
-NOTE: The real dataset is not yet available and will be released after confirmation with legal department (we hope it will be ~Feb 2020).
 
 Code is written on PyTorch & [Catalyst](https://github.com/catalyst-team/catalyst). You will probably have to take a look on
 how Catalyst pipeline is organised ([maybe useful link](https://www.youtube.com/watch?v=FlPeL4g6WX4)) before starting to go deeper with this project.
