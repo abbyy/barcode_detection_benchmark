@@ -1,3 +1,5 @@
+![Poster](poster_img.png)
+
 ## Description
 
 Code for paper [New Benchmarks for Barcode Detection using both Synthetic and Real Data](https://toappear)
