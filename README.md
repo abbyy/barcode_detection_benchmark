@@ -2,7 +2,7 @@
 
 ## Description
 
-Code for paper [New Benchmarks for Barcode Detection using both Synthetic and Real Data](https://toappear)
+Code for paper [New Benchmarks for Barcode Detection using both Synthetic and Real Data](https://link.springer.com/chapter/10.1007%2F978-3-030-57058-3_34)
 
 You can download datasets ZVZ-synth & ZVZ-real [from here](https://drive.google.com/drive/folders/1u-EfCBu-HScu0kEfXGFzFuuWfFnpOsia?usp=sharing). 
 
@@ -168,6 +168,21 @@ from your `class_config`.
 You can modify the configs to change losses/reduction metrics/visualization/etc. You may need
 to write custom callbacks for this purpose or use the default ones from catalyst. Some examples
 of custom callbacks may be found in src/callbacks
+
+### Citation format
+
+```
+@incollection{Zharkov_2020,
+	doi = {10.1007/978-3-030-57058-3_34},
+	url = {https://doi.org/10.1007%2F978-3-030-57058-3_34},
+	year = 2020,
+	publisher = {Springer International Publishing},
+	pages = {481--493},
+	author = {Andrey Zharkov and Andrey Vavilin and Ivan Zagaynov},
+	title = {New Benchmarks for Barcode Detection Using Both Synthetic and Real Data},
+	booktitle = {Document Analysis Systems}
+}
+```
 
 ### Copyright notice
 
