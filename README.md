@@ -9,6 +9,10 @@ You can download datasets ZVZ-synth & ZVZ-real [from here](https://drive.google.
 Code is written on PyTorch & [Catalyst](https://github.com/catalyst-team/catalyst). You will probably have to take a look on
 how Catalyst pipeline is organised ([maybe useful link](https://www.youtube.com/watch?v=FlPeL4g6WX4)) before starting to go deeper with this project.
 
+## Updates
+
+### 20.08.2022 updated links to dataset and models: [new link](https://drive.google.com/drive/folders/1a_SSHyfQMuq2Q77OHp87igx0u6f3Ga2t?usp=sharing), [mirror](https://disk.yandex.ru/d/wWPIQOv7-mQhEw)
+
 ## Features
 
 - detection of multiple object classes and their further classification
